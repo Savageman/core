@@ -37,6 +37,7 @@ class Event
 	 *
 	 * @access	public
 	 * @param	string	The name of the event
+	 * @param	int		Priority (default = 10, lowest value has more priority)
 	 * @param	mixed	callback information
 	 * @return	void
 	 */
@@ -44,15 +45,18 @@ class Event
 	{
 		// get any arguments passed
 		$callback = func_get_args();
+		$event    = array_shift($callback);
+		$priority = isset($callback[0]) and is_int($callback[0]) ? array_shift($callback) : 10;
 
 		// if the arguments are valid, register the event
-		if (isset($callback[0]) and is_string($callback[0]) and isset($callback[1]) and is_callable($callback[1]))
+		if (is_string($event) and isset($callback[0]) and is_callable($callback[0]))
 		{
 			// make sure we have an array for this event
-			isset(static::$_events[$callback[0]]) or static::$_events[$callback[0]] = array();
+			isset(static::$_events[$event]) or static::$_events[$event] = array();
+			isset(static::$_events[$event][$priority]) or static::$_events[$event][$priority] = array();
 
 			// store the callback on the call stack
-			array_unshift(static::$_events[$callback[0]], $callback);
+			array_unshift(static::$_events[$event][$priority], $callback);
 
 			// and report success
 			return true;
@@ -91,18 +95,18 @@ class Event
 		if (static::has_events($event))
 		{
 			// process them
-			foreach (static::$_events[$event] as $arguments)
+			foreach (static::$_events[$event] as $events)
 			{
-				// get rid of the event name
-				array_shift($arguments);
-
-				// get the callback method
-				$callback = array_shift($arguments);
-
-				// call the callback event
-				if (is_callable($callback))
+				foreach ($events as $arguments)
 				{
-					$calls[] = call_user_func($callback, $data, $arguments);
+					// get the callback method
+					$callback = array_shift($arguments);
+
+					// call the callback event
+					if (is_callable($callback))
+					{
+						$calls[] = call_user_func($callback, $data, $arguments);
+					}
 				}
 			}
 		}
